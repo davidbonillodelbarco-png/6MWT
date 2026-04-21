@@ -1,1 +1,72 @@
+# CODI PER CONECTAR ESP32 A MÓVIL ENVINAT UNA PARAULA
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
 
+// UUIDs del servicio y la característica
+#define SERVICE_UUID        "12345678-1234-1234-1234-123456789012"
+#define CHARACTERISTIC_UUID "87654321-4321-4321-4321-210987654321"
+
+BLEServer* pServer = nullptr;
+BLECharacteristic* pCharacteristic = nullptr;
+bool deviceConnected = false;
+
+// Callbacks para detectar conexión/desconexión
+class MyServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) {
+    deviceConnected = true;
+    Serial.println("Cliente conectado");
+  }
+  void onDisconnect(BLEServer* pServer) {
+    deviceConnected = false;
+    Serial.println("Cliente desconectado");
+    // Reinicia advertising para que el móvil pueda volver a encontrarlo
+    BLEDevice::startAdvertising();
+  }
+};
+
+void setup() {
+  Serial.begin(115200);
+
+  // Inicializa BLE con el nombre que verás en nRF Connect
+  BLEDevice::init("ESP32_Test");
+
+  // Crea el servidor BLE
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // Crea el servicio
+  BLEService* pService = pServer->createService(SERVICE_UUID);
+
+  // Crea la característica con propiedad NOTIFY
+  pCharacteristic = pService->createCharacteristic(
+    CHARACTERISTIC_UUID,
+    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+  );
+
+  // Necesario para que funcione el NOTIFY
+  pCharacteristic->addDescriptor(new BLE2902());
+
+  // Inicia el servicio
+  pService->start();
+
+  // Inicia el advertising (el ESP32 se vuelve visible)
+  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  BLEDevice::startAdvertising();
+
+  Serial.println("ESP32 BLE listo. Esperando conexión...");
+}
+
+void loop() {
+  if (deviceConnected) {
+    // Envía la palabra cada 2 segundos
+    String mensaje = "Hola ESP32";
+    pCharacteristic->setValue(mensaje.c_str());
+    pCharacteristic->notify();
+    Serial.println("Enviado: " + mensaje);
+    delay(2000);
+  }
+}
