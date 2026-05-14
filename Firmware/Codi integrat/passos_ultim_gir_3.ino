@@ -63,17 +63,19 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
       firstReading = true; // Forzamos recalibrar el eje horizontal al arrancar
       
       Serial.println("Medición iniciada");
+      // Importante para que App Inventor detecte actividad
+      pCharacteristicTX->notify();
     }
     else if (valor == "stop") {
       if (isRunning) {
         isRunning = false;
-        float timeSeconds = (millis() - startTime) / 1000.0;
         
-        // Formato comprimido: "T:12.5s V:3 P:42" (Pasos del ÚLTIMO tramo)
+        // Formato estándar "V;P" sin los dos puntos iniciales para no romper el split de la App
         char resultStr[30];
-        snprintf(resultStr, sizeof(resultStr), "T:%.1fs V:%d P:%d", timeSeconds, turnCount, stepCount);
+        snprintf(resultStr, sizeof(resultStr), "%d;%d", turnCount, stepCount);
         
         Serial.println("Medición finalizada");
+        Serial.print("Enviando a App: ");
         Serial.println(resultStr);
         
         pCharacteristicTX->setValue(resultStr);
@@ -141,7 +143,7 @@ void setup() {
   pAdvertising->setScanResponse(true);
   BLEDevice::startAdvertising();
 
-  Serial.println("Esperando conexión BLE. Envía 'go' o 'stop'.");
+  Serial.println("Esperando conexión BLE...");
 }
 
 void loop() {

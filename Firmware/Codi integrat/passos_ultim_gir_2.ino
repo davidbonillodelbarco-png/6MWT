@@ -63,8 +63,6 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
       firstReading = true; // Forzamos recalibrar el eje horizontal al arrancar
       
       Serial.println("Medición iniciada");
-      pCharacteristicTX->setValue("Go!");
-      pCharacteristicTX->notify();
     }
     else if (valor == "stop") {
       if (isRunning) {
